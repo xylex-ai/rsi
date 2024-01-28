@@ -101,14 +101,17 @@ impl RelativeStrengthIndex {
 
 
 fn remerge_dataframe(
-    dataframe: DataFrame,
+    mut dataframe: DataFrame,
     dataframe_normalized: DataFrame
 ) -> Result<LazyFrame, PolarsError> {
+
+    // Drop the first row of the original dataframe
+    dataframe = dataframe.slice(1, dataframe.height() - 1);
+
     // remerge the normalized dataframe with the original dataframe
-
     // take the rsi column from the normalized dataframe and add it to the original dataframe
-
     let rsi_column: Series = dataframe_normalized.column("rsi").unwrap().clone();
+
 
     // hstack
     let dataframe: DataFrame = dataframe.hstack(

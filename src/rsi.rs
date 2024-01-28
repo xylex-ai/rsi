@@ -68,7 +68,7 @@ impl PriceChange {
                     ).otherwise(
                         lit(0.0)
                     )
-                    .alias("price_change_negative"),
+                    .alias("loss"),
 
                     when(
                         col("price_change").gt(lit(0.0))
@@ -77,9 +77,29 @@ impl PriceChange {
                     ).otherwise(
                         lit(0.0)
                     )
-                    .alias("price_change_positive")
+                    .alias("gain")
                 ]
+                )
+                // add normalized loss column
+                .with_column(
+                    when(
+                        col("loss").lt(lit(0.0))
+                    ).then(
+                        -col("loss")
+                    ).otherwise(
+                        lit(0.0)
+                    )
+                    .alias("loss_normalized")
                 );
+
+        // Convert LazyFrame to DataFrame
+        let df: DataFrame = lazyframe_price_change.collect()?;
+
+        // Drop the first row
+        let new_df = df.slice(1, df.height() - 1);
+
+        // Convert DataFrame back to LazyFrame
+        let lazyframe_price_change = new_df.lazy();
 
         Ok(lazyframe_price_change)
     }
@@ -106,10 +126,10 @@ impl RollingMean {
     ) -> Result<LazyFrame, PolarsError> {
         let dataframe: DataFrame = lazyframe.collect()?;
 
-        let series_change_negative: Series = dataframe.column("price_change_negative")?.clone();
-        let series_change_positive: Series = dataframe.column("price_change_positive")?.clone();
+        let series_loss: Series = dataframe.column("loss_normalized")?.clone();
+        let series_gain: Series = dataframe.column("gain")?.clone();
 
-        let series_change_negative: Series = series_change_negative.rolling_mean(
+        let loss_average: Series = series_loss.rolling_mean(
             RollingOptions::into(
                 RollingOptions {
                     window_size: polars::prelude::Duration::new(period),
@@ -122,7 +142,7 @@ impl RollingMean {
                     warn_if_unsorted: false,
             }))?;
 
-        let series_change_positive: Series = series_change_positive.rolling_mean(
+        let gain_average: Series = series_gain.rolling_mean(
             RollingOptions::into(
                 RollingOptions {
                     window_size: polars::prelude::Duration::new(period),
@@ -139,11 +159,11 @@ impl RollingMean {
         let dataframe: DataFrame = dataframe.clone();
 
         // rename series
-        let mut series_change_negative: Series = series_change_negative;
-        let mut series_change_positive: Series = series_change_positive;
+        let mut series_change_negative: Series = loss_average;
+        let mut series_change_positive: Series = gain_average;
 
-        series_change_negative.rename("rolling_mean_negative");
-        series_change_positive.rename("rolling_mean_positive");
+        series_change_negative.rename("loss_average");
+        series_change_positive.rename("gain_average");
 
         // hstack
         let dataframe_rolling: DataFrame = dataframe.hstack(
@@ -172,63 +192,21 @@ impl FinalRS {
     pub fn calculate_final_rs(
         lazyframe: LazyFrame,
     ) -> Result<LazyFrame, PolarsError> {
-        let mut dataframe: DataFrame = lazyframe.clone().collect()?;
 
-        fn negative_to_absolute(str_val: &Series) -> Series {
-            str_val.f64()
-                .unwrap()
-                .into_iter()
-                .map(|opt_val| {
-                    opt_val.map(|val| {
-                        let val: f64 = 100000.0 - (val + 100000.0);
-                        val
-                    })
-                })
-                .collect::<Float64Chunked>()
-                .into_series()
-        }
-
-        let absolute_negative: &mut DataFrame = dataframe.apply(
-            "rolling_mean_negative",
-            negative_to_absolute
-        )?;
+        let lazyframe_rs: LazyFrame = lazyframe.clone()
+            .with_column(
+                when(
+                    col("gain_average").neq(lit(0.0)).and(col("loss_average").neq(lit(0.0)))
+                ).then(
+                    col("gain_average") / col("loss_average")
+                ).otherwise(
+                    lit(0.0)
+                )
+                .alias("rs")
+            );
 
 
-
-        // divide the average gain (rolling_mean_positive) by the average loss (rolling_mean_negative) to get RS
-        let series_rolling_mean_positive: Series = absolute_negative.column("rolling_mean_positive")?.clone();
-        let series_rolling_mean_negative: Series = absolute_negative.column("rolling_mean_negative")?.clone();
-
-        // calculate RS by dividing the average gain (rolling_mean_positive) by the average loss (rolling_mean_negative)
-        let mut series_rs: Series = series_rolling_mean_positive.f64()
-        .unwrap()
-        .into_iter()
-        .zip(series_rolling_mean_negative.f64().unwrap())
-        .map(|(pos_val, neg_val)| {
-            match (pos_val, neg_val) {
-                (Some(pos), Some(neg)) if neg != 0.0 => Some(pos / neg),
-                (Some(_), Some(neg)) if neg == 0.0 => Some(f64::INFINITY),
-                _ => None,
-            }
-        })
-        .collect::<Float64Chunked>()
-        .into_series();
-
-        // rename the series to rs
-        let series_rs_renamed: &mut Series = series_rs.rename("rs");
-        // unmut the series
-        let series_rs_renamed: Series = series_rs_renamed.clone();
-
-        // add RS to dataframe
-        let absolute_negative: &mut DataFrame = absolute_negative.with_column(
-            series_rs_renamed
-        )?;
-
-
-        // conver to lazyframe
-        let lazyframe: LazyFrame = absolute_negative.clone().lazy();
-
-        Ok(lazyframe.clone())
+        Ok(lazyframe_rs.clone())
     }
 }
 
@@ -247,37 +225,18 @@ impl FinalRSI {
     pub fn calculate_final_rsi(
         lazyframe: LazyFrame,
     ) -> Result<LazyFrame, PolarsError> {
-        let dataframe: DataFrame = lazyframe.collect()?;
 
-        let series_rolling_mean_positive: Series = dataframe.column("rolling_mean_positive")?.clone();
-        let series_rolling_mean_negative: Series = dataframe.column("rolling_mean_negative")?.clone();
-
-        let mut series_rolling_mean_negative = series_rolling_mean_negative.f64()
-        .unwrap()
-        .into_iter()
-        .zip(series_rolling_mean_positive.f64().unwrap())
-        .map(|(neg_val, pos_val)| {
-            neg_val.map(|neg| {
-                let val: f64 = 100.0 - (100.0 / (1.0 + (neg / pos_val.unwrap_or(0.0))));
-                val
-            })
-        })
-        .collect::<Float64Chunked>()
-        .into_series();
-
-        // rename the series to rsi
-        let series_rolling_mean_negative: &mut Series = series_rolling_mean_negative.rename("rsi");
-
-        // unmutate the series
-        let series_rolling_mean_negative_unmut: Series = series_rolling_mean_negative.clone();
-
-        let dataframe: DataFrame = dataframe.hstack(
-            &[
-                series_rolling_mean_negative_unmut
-            ])?;
-
-        let lazyframe: LazyFrame = dataframe.lazy();
-
-        Ok(lazyframe)
+        let lazyframe_rsi: LazyFrame = lazyframe.clone()
+            .with_column(
+                when(
+                    col("rs").neq(lit(0.0))
+                ).then(
+                    lit(100.0) - (lit(100.0) / (lit(1.0) + col("rs")))
+                ).otherwise(
+                    lit(0.0)
+                )
+                .alias("rsi")
+            );
+        Ok(lazyframe_rsi)
     }
 }
