@@ -201,16 +201,18 @@ impl FinalRS {
 
         // calculate RS by dividing the average gain (rolling_mean_positive) by the average loss (rolling_mean_negative)
         let mut series_rs: Series = series_rolling_mean_positive.f64()
-            .unwrap()
-            .into_iter()
-            .map(|opt_val| {
-                opt_val.map(|val| {
-                    let val: f64 = val / series_rolling_mean_negative.f64().unwrap().get(0).unwrap();
-                    val
-                })
-            })
-            .collect::<Float64Chunked>()
-            .into_series();
+        .unwrap()
+        .into_iter()
+        .zip(series_rolling_mean_negative.f64().unwrap())
+        .map(|(pos_val, neg_val)| {
+            match (pos_val, neg_val) {
+                (Some(pos), Some(neg)) if neg != 0.0 => Some(pos / neg),
+                (Some(_), Some(neg)) if neg == 0.0 => Some(f64::INFINITY),
+                _ => None,
+            }
+        })
+        .collect::<Float64Chunked>()
+        .into_series();
 
         // rename the series to rs
         let series_rs_renamed: &mut Series = series_rs.rename("rs");
@@ -250,17 +252,18 @@ impl FinalRSI {
         let series_rolling_mean_positive: Series = dataframe.column("rolling_mean_positive")?.clone();
         let series_rolling_mean_negative: Series = dataframe.column("rolling_mean_negative")?.clone();
 
-        let mut series_rolling_mean_negative: Series = series_rolling_mean_negative.f64()
-            .unwrap()
-            .into_iter()
-            .map(|opt_val| {
-                opt_val.map(|val| {
-                    let val: f64 = 100.0 - (100.0 / (1.0 + (val / series_rolling_mean_positive.f64().unwrap().get(0).unwrap())));
-                    val
-                })
+        let mut series_rolling_mean_negative = series_rolling_mean_negative.f64()
+        .unwrap()
+        .into_iter()
+        .zip(series_rolling_mean_positive.f64().unwrap())
+        .map(|(neg_val, pos_val)| {
+            neg_val.map(|neg| {
+                let val: f64 = 100.0 - (100.0 / (1.0 + (neg / pos_val.unwrap_or(0.0))));
+                val
             })
-            .collect::<Float64Chunked>()
-            .into_series();
+        })
+        .collect::<Float64Chunked>()
+        .into_series();
 
         // rename the series to rsi
         let series_rolling_mean_negative: &mut Series = series_rolling_mean_negative.rename("rsi");
