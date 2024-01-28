@@ -1,0 +1,14 @@
+[package]
+name = "rsi"
+version = "0.1.0"
+edition = "2021"
+authors = ["Floris floris@xylex.ai & Hadi hadi@xylex.ai"]
+description = "A lightweight RSI library in Rust"
+license = "MIT"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+polars = {version = "0.35.4", features = ["lazy", "rolling_window"] }
+dotenv = "0.15.0"
