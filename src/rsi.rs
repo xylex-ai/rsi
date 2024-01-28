@@ -101,8 +101,6 @@ impl PriceChange {
         // Convert DataFrame back to LazyFrame
         let lazyframe_price_change = new_df.lazy();
 
-        println!("lazyframe_price_change gais: {:#?}", lazyframe_price_change.clone().collect());
-
         Ok(lazyframe_price_change)
     }
 }
@@ -135,7 +133,7 @@ impl RollingMean {
             RollingOptions::into(
                 RollingOptions {
                     window_size: polars::prelude::Duration::new(period),
-                    min_periods: 13,
+                    min_periods: 1,
                     center: false,
                     weights: None,
                     by: None,
@@ -148,7 +146,7 @@ impl RollingMean {
             RollingOptions::into(
                 RollingOptions {
                     window_size: polars::prelude::Duration::new(period),
-                    min_periods: 13,
+                    min_periods: 1,
                     center: false,
                     weights: None,
                     by: None,
@@ -173,8 +171,6 @@ impl RollingMean {
                 series_change_negative,
                 series_change_positive
             ])?;
-
-        println!("dataframe with averages: {:#?}", dataframe_rolling.clone());
 
         let lazyframe_rolling: LazyFrame = dataframe_rolling.lazy();
 
@@ -209,8 +205,6 @@ impl FinalRS {
                 .alias("rs")
             );
 
-
-        println!("lazyframe with RS: {:#?}", lazyframe_rs.clone().collect());
 
         Ok(lazyframe_rs.clone())
     }
