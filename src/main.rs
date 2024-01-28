@@ -17,15 +17,10 @@ fn main() {
         csv_path
     );
 
-    println!(
-        "DataFrame:\n{:?}",
-        df
-    );
-
     // use the rsi function
     let rsi: RelativeStrengthIndex = RelativeStrengthIndex::new(
         df,
-        14
+        10
     );
 
     // turn the rsi lazyframe into a dataframe and print

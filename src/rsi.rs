@@ -22,6 +22,13 @@ pub struct FinalRS {
 }
 
 
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct FinalRSI {
+    lazyframe: LazyFrame
+}
+
+
 /// Calculate the price change between two rows of the dataframe
 impl PriceChange {
     pub fn new(
@@ -185,9 +192,88 @@ impl FinalRS {
             negative_to_absolute
         )?;
 
+
+
+        // divide the average gain (rolling_mean_positive) by the average loss (rolling_mean_negative) to get RS
+        let series_rolling_mean_positive: Series = absolute_negative.column("rolling_mean_positive")?.clone();
+        let series_rolling_mean_negative: Series = absolute_negative.column("rolling_mean_negative")?.clone();
+
+        // calculate RS by dividing the average gain (rolling_mean_positive) by the average loss (rolling_mean_negative)
+        let mut series_rs: Series = series_rolling_mean_positive.f64()
+            .unwrap()
+            .into_iter()
+            .map(|opt_val| {
+                opt_val.map(|val| {
+                    let val: f64 = val / series_rolling_mean_negative.f64().unwrap().get(0).unwrap();
+                    val
+                })
+            })
+            .collect::<Float64Chunked>()
+            .into_series();
+
+        // rename the series to rs
+        let series_rs_renamed: &mut Series = series_rs.rename("rs");
+        // unmut the series
+        let series_rs_renamed: Series = series_rs_renamed.clone();
+
+        // add RS to dataframe
+        let absolute_negative: &mut DataFrame = absolute_negative.with_column(
+            series_rs_renamed
+        )?;
+
+
         // conver to lazyframe
         let lazyframe: LazyFrame = absolute_negative.clone().lazy();
 
         Ok(lazyframe.clone())
+    }
+}
+
+
+// calculate the final RS
+// RSI = 100 - (100 / (1 + RS))
+impl FinalRSI {
+    pub fn new(
+        lazyframe: LazyFrame,
+    ) -> Self {
+        Self {
+            lazyframe
+        }
+    }
+
+    pub fn calculate_final_rsi(
+        lazyframe: LazyFrame,
+    ) -> Result<LazyFrame, PolarsError> {
+        let dataframe: DataFrame = lazyframe.collect()?;
+
+        let series_rolling_mean_positive: Series = dataframe.column("rolling_mean_positive")?.clone();
+        let series_rolling_mean_negative: Series = dataframe.column("rolling_mean_negative")?.clone();
+
+        let mut series_rolling_mean_negative: Series = series_rolling_mean_negative.f64()
+            .unwrap()
+            .into_iter()
+            .map(|opt_val| {
+                opt_val.map(|val| {
+                    let val: f64 = 100.0 - (100.0 / (1.0 + (val / series_rolling_mean_positive.f64().unwrap().get(0).unwrap())));
+                    val
+                })
+            })
+            .collect::<Float64Chunked>()
+            .into_series();
+
+        // rename the series to rsi
+        let series_rolling_mean_negative: &mut Series = series_rolling_mean_negative.rename("rsi");
+
+        // unmutate the series
+        let series_rolling_mean_negative_unmut: Series = series_rolling_mean_negative.clone();
+
+        let dataframe: DataFrame = dataframe.hstack(
+            &[
+                series_rolling_mean_negative_unmut
+            ])?;
+
+        let lazyframe: LazyFrame = dataframe.lazy();
+
+        Ok(lazyframe)
     }
 }
