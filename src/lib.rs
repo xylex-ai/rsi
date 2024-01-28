@@ -12,6 +12,7 @@ pub mod errors;
 pub mod helper;
 
 use helper::Helpers;
+use rsi::PriceChange;
 
 
 #[derive(Clone)]
@@ -71,6 +72,10 @@ impl RelativeStrengthIndex {
         let dataframe_normalized: DataFrame = Helpers::normalize_dataframe(dataframe);
         let lazyframe: LazyFrame = Helpers::convert_dataframe_to_lazyframe(dataframe_normalized)
             .expect("Failed to convert DataFrame to LazyFrame");
+
+        let lazyframe = PriceChange::calculate_price_change(lazyframe.clone())
+            .expect("Failed to calculate price change");
+
 
         Self {
             lazyframe,
