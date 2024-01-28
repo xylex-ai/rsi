@@ -10,5 +10,5 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-polars = {version = "0.35.4", features = ["lazy", "rolling_window"] }
+polars = {version = "0.37", features = ["lazy", "rolling_window", "polars-ops"] }
 dotenv = "0.15.0"

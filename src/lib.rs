@@ -12,7 +12,11 @@ pub mod errors;
 pub mod helper;
 
 use helper::Helpers;
-use rsi::PriceChange;
+use rsi::{
+    PriceChange,
+    RollingMean,
+    FinalRS
+};
 
 
 #[derive(Clone)]
@@ -73,8 +77,15 @@ impl RelativeStrengthIndex {
         let lazyframe: LazyFrame = Helpers::convert_dataframe_to_lazyframe(dataframe_normalized)
             .expect("Failed to convert DataFrame to LazyFrame");
 
-        let lazyframe = PriceChange::calculate_price_change(lazyframe.clone())
+        let lazyframe: LazyFrame = PriceChange::calculate_price_change(lazyframe.clone())
             .expect("Failed to calculate price change");
+
+        let lazyframe: LazyFrame = RollingMean::period_rolling_mean(lazyframe.clone(), period as i64)
+            .expect("Failed to calculate rolling mean");
+
+
+        let lazyframe: LazyFrame = FinalRS::calculate_final_rs(lazyframe.clone())
+            .expect("Failed to calculate final RS");
 
 
         Self {

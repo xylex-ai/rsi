@@ -7,6 +7,7 @@ use polars::prelude::{
 };
 
 
+#[allow(dead_code)]
 pub struct Helpers {
     dataframe: DataFrame
 }
