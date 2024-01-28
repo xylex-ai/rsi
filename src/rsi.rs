@@ -90,11 +90,12 @@ impl PriceChange {
 
 impl RollingMean {
     pub fn new(
-        lazyframe: LazyFrame
+        lazyframe: LazyFrame,
+        period: i64
     ) -> Self {
         Self {
             lazyframe,
-            period: 0
+            period
         }
     }
 
@@ -113,7 +114,7 @@ impl RollingMean {
                 RollingOptions {
                     window_size: polars::prelude::Duration::new(period),
                     min_periods: 1,
-                    center: true,
+                    center: false,
                     weights: None,
                     by: None,
                     closed_window: None,
@@ -126,7 +127,7 @@ impl RollingMean {
                 RollingOptions {
                     window_size: polars::prelude::Duration::new(period),
                     min_periods: 1,
-                    center: true,
+                    center: false,
                     weights: None,
                     by: None,
                     closed_window: None,

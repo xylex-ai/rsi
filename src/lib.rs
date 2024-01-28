@@ -71,6 +71,7 @@ impl RelativeStrengthIndex {
         dataframe: DataFrame,
         period: usize
     ) -> Self {
+
         let dataframe_normalized: DataFrame = Helpers::normalize_dataframe(dataframe.clone());
         let lazyframe: LazyFrame = Helpers::convert_dataframe_to_lazyframe(dataframe_normalized)
             .expect("Failed to convert DataFrame to LazyFrame");
@@ -84,12 +85,12 @@ impl RelativeStrengthIndex {
         let lazyframe: LazyFrame = FinalRS::calculate_final_rs(lazyframe.clone())
             .expect("Failed to calculate final RS");
 
-        let lazyframe: LazyFrame = FinalRSI::calculate_final_rsi(lazyframe.clone()).expect("Failed to calculate final RSI");
+        // let lazyframe: LazyFrame = FinalRSI::calculate_final_rsi(lazyframe.clone()).expect("Failed to calculate final RSI");
 
-        let lazyframe: LazyFrame = remerge_dataframe(
-            dataframe.clone(),
-            lazyframe.clone().collect().unwrap()
-        ).expect("Failed to remerge dataframe");
+        // let lazyframe: LazyFrame = remerge_dataframe(
+        //     dataframe.clone(),
+        //     lazyframe.clone().collect().unwrap()
+        // ).expect("Failed to remerge dataframe");
 
         Self {
             lazyframe,

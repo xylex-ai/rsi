@@ -11,7 +11,7 @@ fn main() {
     println!("Hello, world!");
 
     // open csv file and print the dataframe
-    let csv_path: &str = "ohlc.csv";
+    let csv_path: &str = "eurusd.csv";
 
     let df: DataFrame = csv_to_dataframe(
         csv_path
@@ -20,7 +20,7 @@ fn main() {
     // use the rsi function
     let rsi: RelativeStrengthIndex = RelativeStrengthIndex::new(
         df,
-        10
+        14
     );
 
     // turn the rsi lazyframe into a dataframe and print
@@ -30,6 +30,14 @@ fn main() {
         "RSI DataFrame:\n{:?}",
         rsi_df
     );
+
+    // write the rsi dataframe to a csv file
+    write_dataframe_to_csv_polars(
+        &mut rsi_df.clone()
+    );
+
+
+
 }
 
 
@@ -51,4 +59,23 @@ pub fn csv_to_dataframe(
         .has_header(true)
         .finish()
         .unwrap()
+}
+
+
+pub fn write_dataframe_to_csv_polars(
+    dataframe: &mut DataFrame
+) {
+    // Write a DataFrame to a CSV file
+
+    let file: File = File::create(
+        "output.csv"
+    ).expect(
+        "Could not create file"
+    );
+
+    let writer: BufWriter<File>  = BufWriter::new(file);
+
+    CsvWriter::new(writer)
+        .finish(dataframe)
+        .unwrap();
 }
