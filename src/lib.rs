@@ -101,19 +101,35 @@ impl RelativeStrengthIndex {
 
 
 fn remerge_dataframe(
-    dataframe: DataFrame,
+    mut dataframe: DataFrame,
     dataframe_normalized: DataFrame
 ) -> Result<LazyFrame, PolarsError> {
+
+    // Drop the first row of the original dataframe
+    dataframe = dataframe.slice(1, dataframe.height() - 1);
+
     // remerge the normalized dataframe with the original dataframe
-
     // take the rsi column from the normalized dataframe and add it to the original dataframe
-
     let rsi_column: Series = dataframe_normalized.column("rsi").unwrap().clone();
+    let loss_column: Series = dataframe_normalized.column("loss").unwrap().clone();
+    let gain_column: Series = dataframe_normalized.column("gain").unwrap().clone();
+    let loss_normalized_column: Series = dataframe_normalized.column("loss_normalized").unwrap().clone();
+    let loss_average_column: Series = dataframe_normalized.column("loss_average").unwrap().clone();
+    let gain_average_column: Series = dataframe_normalized.column("gain_average").unwrap().clone();
+    let rs_column: Series = dataframe_normalized.column("rs").unwrap().clone();
+    let price_change_column: Series = dataframe_normalized.column("price_change").unwrap().clone();
 
     // hstack
     let dataframe: DataFrame = dataframe.hstack(
         &[
-            rsi_column
+            rsi_column,
+            loss_column,
+            gain_column,
+            loss_normalized_column,
+            loss_average_column,
+            gain_average_column,
+            rs_column,
+            price_change_column
         ])?;
 
     let lazyframe: LazyFrame = dataframe.lazy();
