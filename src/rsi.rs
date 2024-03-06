@@ -85,7 +85,7 @@ impl PriceChange {
                     when(
                         col("loss").lt(lit(0.0))
                     ).then(
-                        -col("loss")
+                        col("loss")
                     ).otherwise(
                         lit(0.0)
                     )
@@ -139,7 +139,6 @@ impl RollingMean {
                     by: None,
                     closed_window: None,
                     fn_params: None,
-                    warn_if_unsorted: false,
             }))?;
 
         let gain_average: Series = series_gain.rolling_mean(
@@ -152,9 +151,7 @@ impl RollingMean {
                     by: None,
                     closed_window: None,
                     fn_params: None,
-                    warn_if_unsorted: false,
             }))?;
-
 
         let dataframe: DataFrame = dataframe.clone();
 
