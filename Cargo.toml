@@ -1,6 +1,6 @@
 [package]
 name = "rsi"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Floris floris@xylex.ai & Hadi hadi@xylex.ai"]
 description = "A lightweight RSI library in Rust"
